@@ -1,0 +1,6 @@
+{
+  "jupyter.jupyterServerType": "local",
+  "python.pythonPath": "C:\\Python38\\python.exe",
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+}

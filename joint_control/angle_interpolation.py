@@ -30,7 +30,8 @@ class AngleInterpolationAgent(PIDAgent):
                  teamname='DAInamite',
                  player_id=0,
                  sync_mode=True):
-        super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
+        super(AngleInterpolationAgent, self).__init__(
+            simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
 
     def think(self, perception):
@@ -41,8 +42,10 @@ class AngleInterpolationAgent(PIDAgent):
     def angle_interpolation(self, keyframes, perception):
         target_joints = {}
         # YOUR CODE HERE
-
+        print('KeyFrame ', keyframes)
+        print('Perception ', perception)
         return target_joints
+
 
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()
