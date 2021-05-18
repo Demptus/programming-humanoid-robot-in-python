@@ -34,6 +34,7 @@ class AngleInterpolationAgent(PIDAgent):
         super(AngleInterpolationAgent, self).__init__(
             simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
+        self.start = -1
 
     def think(self, perception):
         target_joints = self.angle_interpolation(self.keyframes, perception)
@@ -41,51 +42,83 @@ class AngleInterpolationAgent(PIDAgent):
         return super(AngleInterpolationAgent, self).think(perception)
 
     def angle_interpolation(self, keyframes, perception):
-        targetJoints = {}
-        if not self.isAnimating():
+        target_joints = {}
+        # YOUR CODE HERE
+
+        if(keyframes == ([], [], [])):
             return {}
+        else:
+            (names, times, keys) = keyframes
 
-        if self.start_time == -1:
-            self.start_time = perception.time
+        if (self.start == -1):
+            self.start = perception.time
 
-        time = perception.time - self.start_time
+        timeInterval = perception.time - self.start
+        endIndex = 0
 
-        finishedKeyframes = list(
-            map(lambda times: times[-1] < time, keyframes[1]))
+        for (nameIterator, name) in enumerate(names):
+            timeFrame = times[nameIterator]
+            upperThreshold = 0
+            lowerThreshold = 0
+            skippedJoints = 0
 
-        lastAngles = list(map(lambda keys: keys[-1][0], keyframes[2]))
-        targetAngles = list(map(lambda spline, finished, lastAngle: interpolate.splev([time], spline)[
-            0] if not finished else lastAngle, self.splines, finishedKeyframes, lastAngles))
+            if timeFrame[-1] < timeInterval:
+                skippedJoints += 1
+                if(skippedJoints == len(names)):
+                    self.start = -1
+                    self.keyframes = ([], [], [])
+                continue
+            endIndex,upperThreshold, lowerThreshold = self.findTimeSpan(times, nameIterator, upperThreshold, timeFrame, lowerThreshold, timeInterval, endIndex)
 
-        if all(finishedKeyframes):
-            self.stopAnimation()
+            if (upperThreshold - lowerThreshold) == 0:
+                t = 1
+            else:
+                t = (timeInterval - lowerThreshold) /  (upperThreshold - lowerThreshold)
+                if(t > 1):
+                    t = 1
+                elif t < 0:
+                    t = 0
 
-        targetJoints = dict(zip(keyframes[0], targetAngles))
+            if (endIndex != 0):
+                p0, p1, p2, p3 = self.setPoints(keys, nameIterator, endIndex)
+            elif (endIndex == 0):
+                p0, p1, p2, p3 = self.resetPoints(keys, nameIterator)
 
-        # if "LHipYawPitch" in targetJoints and "RHipYawPitch" in targetJoints:
-        targetJoints["RHipYawPitch"] = targetJoints["LHipYawPitch"]
+            angle = ((1-t)**3)*p0 + 3*t*((1-t)**2) * \
+                p1 + 3*(t**2)*(1-t)*p2 + (t**3)*p3
 
-        return targetJoints
+            if(name == "LHipYawPitch"):
+                target_joints["RHipYawPitch"] = angle
 
-    def stopAnimation(self):
-        del self.start_time
-        self.keyframes = ([], [], [])
-        print 'stop Animation'
+            target_joints[name] = angle
 
-    def isAnimating(self):
-        return hasattr(self, 'start_time')
+        return target_joints
 
-    def startAnimation(self, keyframes):
-        self.start_time = -1
-        self.keyframes = keyframes
-        jointAngles = list(map(lambda joint: list(
-            map(lambda key: key[0], joint)), self.keyframes[2]))
-        self.splines = list(map(lambda times, angles: interpolate.splrep(
-            times, angles, s=0), self.keyframes[1], jointAngles))
-        print 'start Animation'
+    def resetPoints(self, keys, nameIterator):
+        p0 = 0
+        p1 = 0
+        p3 = keys[nameIterator][0][0]
+        p2 = p3 + keys[nameIterator][0][1][2]
+        return p0, p1, p2, p3
+
+    def setPoints(self, keys, nameIterator, endIndex):
+        p0 = keys[nameIterator][endIndex-1][0]
+        p3 = keys[nameIterator][endIndex][0]
+        p1 = p0 + keys[nameIterator][endIndex-1][1][2]
+        p2 = p3 + keys[nameIterator][endIndex][1][2]
+        return p0, p1, p2, p3
+
+    def findTimeSpan(self, times, nameIterator, upperThreshold, timeFrame, lowerThreshold, timeInterval, endIndex):
+        for timeIterator in range(len(times[nameIterator])):
+            upperThreshold = timeFrame[timeIterator]
+            if (lowerThreshold <= timeInterval and upperThreshold > timeInterval):
+                endIndex = timeIterator
+                break
+            lowerThreshold = upperThreshold
+        return endIndex, upperThreshold, lowerThreshold
 
 
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()
-    # agent.startAnimation(rightBellyToStand())  # CHANGE DIFFERENT KEYFRAMES
+    agent.keyframes = rightBellyToStand()  # CHANGE DIFFERENT KEYFRAMES
     agent.run()
