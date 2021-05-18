@@ -21,7 +21,8 @@
 
 
 from pid import PIDAgent
-from keyframes import hello
+from keyframes import rightBellyToStand
+from scipy import interpolate
 
 
 class AngleInterpolationAgent(PIDAgent):
@@ -40,14 +41,51 @@ class AngleInterpolationAgent(PIDAgent):
         return super(AngleInterpolationAgent, self).think(perception)
 
     def angle_interpolation(self, keyframes, perception):
-        target_joints = {}
-        # YOUR CODE HERE
-        print('KeyFrame ', keyframes)
-        print('Perception ', perception)
-        return target_joints
+        targetJoints = {}
+        if not self.isAnimating():
+            return {}
+
+        if self.start_time == -1:
+            self.start_time = perception.time
+
+        time = perception.time - self.start_time
+
+        finishedKeyframes = list(
+            map(lambda times: times[-1] < time, keyframes[1]))
+
+        lastAngles = list(map(lambda keys: keys[-1][0], keyframes[2]))
+        targetAngles = list(map(lambda spline, finished, lastAngle: interpolate.splev([time], spline)[
+            0] if not finished else lastAngle, self.splines, finishedKeyframes, lastAngles))
+
+        if all(finishedKeyframes):
+            self.stopAnimation()
+
+        targetJoints = dict(zip(keyframes[0], targetAngles))
+
+        # if "LHipYawPitch" in targetJoints and "RHipYawPitch" in targetJoints:
+        targetJoints["RHipYawPitch"] = targetJoints["LHipYawPitch"]
+
+        return targetJoints
+
+    def stopAnimation(self):
+        del self.start_time
+        self.keyframes = ([], [], [])
+        print 'stop Animation'
+
+    def isAnimating(self):
+        return hasattr(self, 'start_time')
+
+    def startAnimation(self, keyframes):
+        self.start_time = -1
+        self.keyframes = keyframes
+        jointAngles = list(map(lambda joint: list(
+            map(lambda key: key[0], joint)), self.keyframes[2]))
+        self.splines = list(map(lambda times, angles: interpolate.splrep(
+            times, angles, s=0), self.keyframes[1], jointAngles))
+        print 'start Animation'
 
 
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()
-    agent.keyframes = hello()  # CHANGE DIFFERENT KEYFRAMES
+    # agent.startAnimation(rightBellyToStand())  # CHANGE DIFFERENT KEYFRAMES
     agent.run()

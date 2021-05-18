@@ -1,6 +1,10 @@
 {
   "jupyter.jupyterServerType": "local",
-  "python.pythonPath": "C:\\Python38\\python.exe",
-  "python.linting.enabled": true,
+  "python.pythonPath": "C:\\Python27\\python.exe",
+  "python.linting.enabled": false,
   "python.linting.pylintEnabled": true,
+  "python.analysis.extraPaths": [
+    "C:\\Users\\lucam\\Documents\\Dev\\programming-humanoid-robot-in-python\\joint_control",
+    "C:\\Users\\lucam\\Documents\\Dev\\programming-humanoid-robot-in-python\\software_installation"
+  ],
 }

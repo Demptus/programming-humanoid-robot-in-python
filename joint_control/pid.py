@@ -9,14 +9,12 @@
     2. use self.y to buffer model prediction
 '''
 
-from spark_agent import SparkAgent, JOINT_CMD_NAMES
-from collections import deque
-import numpy as np
 import os
 import sys
-sys.path.append(os.path.join(os.path.abspath(
-    os.path.dirname(__file__)), '..', 'software_installation'))
-
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'software_installation'))
+from collections import deque
+import numpy as np
+from spark_agent import JOINT_CMD_NAMES, SparkAgent
 
 class PIDController(object):
     '''a discretized PID controller, it controls an array of servos,
@@ -35,9 +33,9 @@ class PIDController(object):
         self.e2 = np.zeros(size)
         # ADJUST PARAMETERS BELOW
         delay = 0
-        self.Kp = 0
-        self.Ki = 0
-        self.Kd = 0
+        self.Kp = 15 
+        self.Ki = 0.4 
+        self.Kd = 0.1 
         self.y = deque(np.zeros(size), maxlen=delay + 1)
 
     def set_delay(self, delay):
