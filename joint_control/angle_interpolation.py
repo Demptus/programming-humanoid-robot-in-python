@@ -63,11 +63,9 @@ class AngleInterpolationAgent(PIDAgent):
             skippedJoints = 0
 
             if timeFrame[-1] < timeInterval:
-                skippedJoints += 1
-                if(skippedJoints == len(names)):
-                    self.start = -1
-                    self.keyframes = ([], [], [])
-                continue
+                self.start = -1
+                self.keyframes = ([], [], [])
+                break
             endIndex,upperThreshold, lowerThreshold = self.findTimeSpan(times, nameIterator, upperThreshold, timeFrame, lowerThreshold, timeInterval, endIndex)
 
             if (upperThreshold - lowerThreshold) == 0:
