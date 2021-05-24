@@ -12,13 +12,11 @@
 
 from forward_kinematics import ForwardKinematicsAgent
 import numpy as np
-from dataProvider import CHAINS, ROT_X, ROT_Y, ROT_Z, JOINTS
 from math import atan2, sqrt, pi
 
-EPSILON = 1e-3
 
 class InverseKinematicsAgent(ForwardKinematicsAgent):
-    
+
     def inverse_kinematics(self, effector_name, transform):
         '''solve the inverse kinematics
 
@@ -26,43 +24,96 @@ class InverseKinematicsAgent(ForwardKinematicsAgent):
         :param transform: 4x4 transform matrix
         :return: list of joint angles
         '''
-        
-        fitting_joints = {key : self.perception.joint[key] for key in CHAINS[effector_name]} #get (joint->angle ) for all effector joints
-        
-        effector_chain = CHAINS[effector_name] #end effector for the given effectr chain
-        end_effector = effector_chain[-1] #end_effector
-        
-        Te = self.extract_values(transform)
-        theta = np.zeros(len(fitting_joints)) #initial return value
-        i = 0
-                    
-        while True and i <= 1000: #break loop if angles are satisfiable
-        
-            self.forward_kinematics(fitting_joints) #execute forward kinematics
-            T = self.transforms #result of forward kinematics for effector joints
-            error = Te - self.extract_values(T[end_effector]) #calculate distance between target and actual result
-            
-            jacobi = self.calculate_jacobian_matrix(Te, T, effector_chain) #get jacobian matrix
-            
-            alpha = self.calculate_alpha(error, jacobi) #get scalar for jacobian tranpose method
-            
-            d_theta = alpha * np.dot(jacobi.T, error)#jacobian transpose method
-            theta += d_theta #update theta value
-            self.update_joint_angles(fitting_joints, theta) #update joint angles for next iteration
-            print (np.inner(error, error))
-            if np.inner(error, error) < EPSILON: #break if scalar product of error is lower than tolerated error
+        # get angels for chains of effector
+        minimumError = 1e-3
+        chainsAngles = {key: self.perception.joint[key]
+                        for key in self.chains[effector_name]}
+        # end effector for the given effectr chain
+        chainsOfEffector = self.chains[effector_name]
+        # get last effector chain
+        lastEffectorChain = chainsOfEffector[-1]
+        # target values
+        target = self.extractValues(transform, minimumError)
+        # initalise angelsToReturn
+        angelsToReturn = np.zeros(len(chainsAngles))
+
+        # break loop after 1000 iteration or if angles are satisfied
+        for x in range(1000):
+            # execute forward kinematics
+            self.forward_kinematics(chainsAngles)
+            # save result of forward kinematics for joints
+            fkResult = self.transforms
+            # distance error between target and actual result of last Chain
+            error = target - \
+                self.extractValues(fkResult[lastEffectorChain], minimumError)
+            # calculate jacobian Matrix
+            jacobianMatrix = self.calcJacobianMatrix(
+                target, fkResult, chainsOfEffector)
+
+            # use jacobian transponse methode
+            jacobianTE = np.dot(
+                np.dot(jacobianMatrix, np.transpose(jacobianMatrix)), error)
+            scalar = float(np.inner(error, jacobianTE)) / \
+                float(np.inner(jacobianTE, jacobianTE))
+            newAngles = scalar * np.dot(jacobianMatrix.T, error)
+
+            # increase angelsToReturn by new angles
+            angelsToReturn += newAngles
+            # add updates angles to the angels of the chains
+            for i, key in enumerate(chainsAngles.keys()):
+                chainsAngles[key] += angelsToReturn[i]
+            # check if error is low enougth
+            if np.inner(error, error) < minimumError:
                 break
-            i +=1
-            
-        return theta
-        
-    def calculate_alpha(self, error, jacobi):
+
+        return angelsToReturn
+
+    def calcJacobianMatrix(self, target, fkResult, chainsOfEffector):
+        jacobianMatrix = np.zeros((6, len(chainsOfEffector)))
+        for i, (x, t) in enumerate(fkResult.iteritems()):
+            x, y, z = self.extractCoordinates(t)
+            jacobianMatrix[: i] = (target - np.array([x, y, z, 0, 0, 0]))
+        for i, joint in enumerate(chainsOfEffector):
+            index = 0
+            if 'Pitch' in joint:
+                index = 3
+            if 'Yaw' in joint:
+                index = 4
+            if 'Roll' in joint:
+                index = 5
+            jacobianMatrix[index, i] = 1
+        return jacobianMatrix
+
+    def extractCoordinates(self, transform):
+        x = transform[-1, 0]
+        y = transform[-1, 1]
+        z = transform[-1, 2]
+
+        return x, y, z
+
+    def extractValues(self, transform, minimumError):
         """
-        :param error: vector which contains the error
-        :param jacobi: jacobian matrix
+        :param transform: transformation matrix
+        :return array with coordinates and angles
         """
-        JJTe = np.dot(np.dot(jacobi, np.transpose(jacobi)), error)
-        return float(np.inner(error, JJTe)) / float(np.inner(JJTe, JJTe))
+
+        x, y, z = self.extractCoordinates(transform)
+
+        if(transform[2, 0] > minimumError):
+            angleX = atan2(transform[2, 1], transform[2, 2])
+            angleY = atan2(-transform[2, 0],
+                           sqrt(transform[2, 1]**2 + transform[2, 2]**2))
+            angleZ = atan2(transform[1, 0], transform[0, 0])
+        else:
+            angleZ = 0
+            if(abs(transform[2, 0] + 1) < minimumError):
+                angleX = atan2(transform[0, 1], transform[0, 2])
+                angleY = pi / 2
+            else:
+                angleX = atan2(-transform[0, 1], -transform[0, 2])
+                angleY = -pi / 2
+        return np.array([x, y, z, angleX, angleY, angleZ])
+
 
     def set_transforms(self, effector_name, transform):
         '''solve the inverse kinematics and control joints use the results
@@ -72,64 +123,15 @@ class InverseKinematicsAgent(ForwardKinematicsAgent):
         keys = []
         self.forward_kinematics(self.perception.joint)
         angles = self.inverse_kinematics(effector_name, transform)
-        for i, joint in enumerate(CHAINS[effector_name]):
+        for i, joint in enumerate(self.chains[effector_name]):
             names.append(joint)
             times.append([1.0, 3.0])
-            keys.append([[angles[i] - 0.01, [3, 0, 0], [3, 0, 0]], [angles[i], [3, 0, 0], [3, 0, 0]]]) 
-        self.keyframes = (names, times, keys) # the result joint angles have to fill in
+            keys.append([[angles[i] - 0.01, [3, 0, 0], [3, 0, 0]],
+                        [angles[i], [3, 0, 0], [3, 0, 0]]])
+        # the result joint angles have to fill in
+        self.keyframes = (names, times, keys)
 
-        
-    def calculate_jacobian_matrix(self, Te, T, effector_chain):
-        jacobi = np.zeros((6, len(effector_chain)))
-        for i, (x, t) in enumerate(T.iteritems()):
-            x, y, z = self.extract_coordinate_values(t)
-            jacobi[:i] = (Te - np.array([x, y, z, 0, 0, 0]))
-        return self.set_joint_axis(jacobi, effector_chain)
-        
-    def extract_coordinate_values(self, transform):
-        x = transform[-1,0]
-        y = transform[-1,1]
-        z = transform[-1,2]
-        
-        return x ,y ,z
-            
-    def extract_values(self, transform):
-        """
-        :param transform: transformation matrix
-        :return array with coordinates and angles
-        """
-        
-        x, y, z = self.extract_coordinate_values(transform)
-        
-        if(transform[2,0] > EPSILON):
-            omega_x = atan2(transform[2,1], transform[2,2])
-            omega_y = atan2(-transform[2,0], sqrt(transform[2,1]**2 + transform[2,2]**2))
-            omega_z = atan2(transform[1,0], transform[0,0])
-        else:
-            omega_z = 0
-            if(abs(transform[2,0] + 1) < EPSILON):
-                omega_x = atan2(transform[0,1], transform[0,2])
-                omega_y = pi / 2
-            else:
-                omega_x = atan2(-transform[0,1], -transform[0,2])
-                omega_y = -pi / 2
-        return np.array([x, y, z, omega_x, omega_y, omega_z])
 
-    
-    def set_joint_axis(self, jacobi, effector_chain):
-        for i, joint in enumerate(effector_chain):
-            for trafo in (matrix for matrix, joints in JOINTS.iteritems() if joint in joints):
-                jacobi[self.get_angle_index(trafo), i] = 1
-        return jacobi
-
-    def get_angle_index(self, rotation):
-        return 3 if rotation is ROT_X else 4 if rotation is ROT_Y else 5
-        
-    def update_joint_angles(self, joints, theta):
-        for i, key in enumerate(joints.keys()):
-            joints[key] = theta[i]
-        return joints
-	
 if __name__ == '__main__':
     agent = InverseKinematicsAgent()
     # test inverse kinematics
