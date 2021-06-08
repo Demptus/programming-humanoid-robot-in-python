@@ -16,7 +16,7 @@ import numpy as np
 import pickle
 from os import listdir, path
 ROBOT_POSE_CLF = 'robot_pose.pkl'
-ROBOT_POSE_DATA_DIR = 'robot_pose_data'
+
 
 
 class PostureRecognitionAgent(AngleInterpolationAgent):
@@ -27,8 +27,8 @@ class PostureRecognitionAgent(AngleInterpolationAgent):
                  sync_mode=True):
         super(PostureRecognitionAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.posture = 'unknown'
-        self.class_postures = listdir(ROBOT_POSE_DATA_DIR)
-        self.posture_classifier = pickle.load(open(ROBOT_POSE_CLF))  # LOAD YOUR CLASSIFIER
+        self.class_postures = listdir(r'C:\Users\lucam\Desktop\dev\programming-humanoid-robot-in-python\joint_control\robot_pose_data')
+        self.posture_classifier = pickle.load(open(r'C:\Users\lucam\Desktop\dev\programming-humanoid-robot-in-python\joint_control\robot_pose.pkl'))  # LOAD YOUR CLASSIFIER
 
     def think(self, perception):
         self.posture = self.recognize_posture(perception)
