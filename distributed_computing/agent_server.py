@@ -95,6 +95,6 @@ def startServer():
 
 if __name__ == '__main__':
     agent = ServerAgent()
-    # thread=threading.Thread(target = start_server)
-    # thread.start()
+    thread=threading.Thread(target = start_server)
+    thread.start()
     agent.run()
