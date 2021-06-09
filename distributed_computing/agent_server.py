@@ -57,7 +57,7 @@ class ServerAgent(InverseKinematicsAgent, PostureRecognitionAgent):
         higestTime = timeArray[-1]
 
         start = time.time()
-        while not current_time - start < higestTime:
+        while not now - start < higestTime:
             now = time.time()
         return True
 
@@ -81,7 +81,7 @@ class ServerAgent(InverseKinematicsAgent, PostureRecognitionAgent):
         self.set_transforms()
 
 
-def startServer():
+def start_server():
     server = SimpleXMLRPCServer(('localhost', 8000))
     server.register_instance(ServerAgent(), allow_dotted_names=True)
     server.register_introspection_functions()
