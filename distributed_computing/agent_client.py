@@ -90,11 +90,11 @@ if __name__ == '__main__':
     # agent.set_angle('HeadYaw', 2.0)
     # print(agent.get_angle("HeadYaw"))
     # print(agent.get_posture())
-    agent.execute_keyframes(rightBellyToStand())
-    T = [[1., 0.,   0.,   0.],
-         [0., 1.,   0.,   0.],
-         [0., 0.,   1.,   0.],
-         [0., 0.05, 0.26, 1.]]
+    # agent.execute_keyframes(rightBellyToStand())
+    # T = [[1., 0.,   0.,   0.],
+    #      [0., 1.,   0.,   0.],
+    #      [0., 0.,   1.,   0.],
+    #      [0., 0.05, 0.26, 1.]]
 
     # agent.set_transform('RLeg', T)
     # print('set')

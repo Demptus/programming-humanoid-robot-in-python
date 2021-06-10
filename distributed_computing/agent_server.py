@@ -80,8 +80,8 @@ class ServerAgent(InverseKinematicsAgent, PostureRecognitionAgent):
         '''get transform with given name
         '''
         # YOUR CODE HERE
-        print("\nget Transfrom", self.transforms[name])
-        return self.transforms[name]
+        print("\nget Transfrom")
+        return self.transforms[name].tolist()
 
     def set_transform(self, effector_name, transform):
         '''solve the inverse kinematics and control joints use the results
